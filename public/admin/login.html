@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理员登录 - AI文章管理系统</title>
+  <link rel="stylesheet" href="/admin/css/admin.css">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #001529 0%, #00468c 100%); }
+    .login-box { background: white; padding: 40px; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+    .login-box h1 { text-align: center; margin-bottom: 30px; font-size: 24px; color: #001529; }
+    .login-box .btn { width: 100%; margin-top: 10px; }
+    .error { color: #F5222D; font-size: 14px; margin-top: 8px; display: none; }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <h1>管理员登录</h1>
+    <form id="loginForm">
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" id="username" placeholder="请输入管理员用户名" required>
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" id="password" placeholder="请输入密码" required>
+      </div>
+      <div class="error" id="errorMsg"></div>
+      <button type="submit" class="btn btn-primary" id="submitBtn">登录</button>
+    </form>
+  </div>
+
+  <script src="/admin/js/api.js"></script>
+  <script>
+    if (AdminAPI.isLoggedIn()) {
+      window.location.href = '/admin/index.html';
+    }
+
+    document.getElementById('loginForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const errorMsg = document.getElementById('errorMsg');
+      const submitBtn = document.getElementById('submitBtn');
+      errorMsg.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.textContent = '登录中...';
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      try {
+        const result = await AdminAPI.auth.login(username, password);
+        localStorage.setItem(ADMIN_STORAGE_KEYS.ADMIN_TOKEN, result.token);
+        localStorage.setItem(ADMIN_STORAGE_KEYS.ADMIN, JSON.stringify(result.admin));
+        AdminUtils.toast('登录成功');
+        setTimeout(() => window.location.href = '/admin/index.html', 1000);
+      } catch (err) {
+        errorMsg.textContent = err.message;
+        errorMsg.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = '登录';
+      }
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用户管理 - AI文章管理系统</title>
+  <link rel="stylesheet" href="/admin/css/admin.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-logo">📝 AI文章管理</div>
+      <ul class="sidebar-menu">
+        <li><a href="/admin/index.html">📊 数据统计</a></li>
+        <li class="active"><a href="/admin/users.html">👥 用户管理</a></li>
+        <li><a href="/admin/articles.html">📄 文章管理</a></li>
+        <li><a href="/admin/export.html">📥 导出数据</a></li>
+        <li><a href="/admin/login.html" onclick="AdminAPI.auth.logout()">🚪 退出</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <div class="header">
+        <h1>用户管理</h1>
+      </div>
+
+      <div class="card">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>用户名</th>
+              <th>昵称</th>
+              <th>文章数</th>
+              <th>注册时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="usersTable"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script src="/admin/js/api.js"></script>
+  <script>
+    if (!AdminAPI.isLoggedIn()) window.location.href = '/admin/login.html';
+
+    async function loadUsers() {
+      try {
+        const res = await AdminAPI.users.list();
+        const users = res.users || [];
+        
+        document.getElementById('usersTable').innerHTML = users.length === 0
+          ? '<tr><td colspan="6" class="empty">暂无用户</td></tr>'
+          : users.map(u => `
+            <tr>
+              <td>${u.id}</td>
+              <td>${AdminUtils.escapeHtml(u.username)}</td>
+              <td>${AdminUtils.escapeHtml(u.nickname || '-')}</td>
+              <td>${u.article_count || 0}</td>
+              <td>${AdminUtils.formatDate(u.created_at)}</td>
+              <td>
+                <button class="btn btn-danger" onclick="deleteUser(${u.id}, '${AdminUtils.escapeHtml(u.username)}')">删除</button>
+              </td>
+            </tr>
+          `).join('');
+      } catch (err) {
+        AdminUtils.toast('加载失败: ' + err.message);
+      }
+    }
+
+    async function deleteUser(id, username) {
+      if (!confirm(`确定要删除用户 "${username}" 吗？此操作不可恢复！`)) return;
+      try {
+        await AdminAPI.users.delete(id);
+        AdminUtils.toast('删除成功');
+        loadUsers();
+      } catch (err) {
+        AdminUtils.toast(err.message);
+      }
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>

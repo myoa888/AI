@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>导出文章 - AI文章管理</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .export-item { display: flex; align-items: center; padding: 16px; background: white; border-radius: 12px; margin-bottom: 12px; box-shadow: var(--shadow); cursor: pointer; }
+    .export-item:active { background: #F5F5F5; }
+    .export-icon { font-size: 24px; margin-right: 16px; }
+    .export-info { flex: 1; }
+    .export-title { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+    .export-meta { font-size: 12px; color: #999; }
+    .export-arrow { color: #CCC; font-size: 20px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/mobile/profile.html" class="header-back">← 返回</a>
+    <h1>导出文章</h1>
+  </div>
+
+  <div class="page-content">
+    <p style="color:#666;font-size:14px;margin-bottom:16px;">选择要导出的文章，导出为Markdown格式</p>
+    <div id="articleList"></div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="/mobile/index.html" class="nav-item"><span class="icon">📄</span>文章</a>
+    <a href="/mobile/idea.html" class="nav-item"><span class="icon">💡</span>创意</a>
+    <a href="/mobile/category.html" class="nav-item"><span class="icon">📁</span>分类</a>
+    <a href="/mobile/profile.html" class="nav-item active"><span class="icon">👤</span>我的</a>
+  </nav>
+
+  <script src="/js/api.js"></script>
+  <script>
+    if (!API.user.isLoggedIn()) window.location.href = '/mobile/login.html';
+
+    async function loadArticles() {
+      const listEl = document.getElementById('articleList');
+      listEl.innerHTML = '<div class="loading"><div class="spinner"></div>加载中...</div>';
+
+      try {
+        const res = await API.articles.list({ status: 'published' });
+        const articles = res.articles || [];
+
+        if (articles.length === 0) {
+          listEl.innerHTML = '<div class="empty-state"><p>暂无已发布的文章</p></div>';
+          return;
+        }
+
+        listEl.innerHTML = articles.map(article => `
+          <div class="export-item" onclick="exportArticle(${article.id}, '${Utils.escapeHtml(article.title)}')">
+            <span class="export-icon">📄</span>
+            <div class="export-info">
+              <div class="export-title">${Utils.escapeHtml(article.title)}</div>
+              <div class="export-meta">${Utils.formatDate(article.published_at || article.created_at)}</div>
+            </div>
+            <span class="export-arrow">›</span>
+          </div>
+        `).join('');
+      } catch (err) {
+        listEl.innerHTML = '<div class="empty-state"><p>加载失败: ' + err.message + '</p></div>';
+      }
+    }
+
+    function exportArticle(id, title) {
+      // 获取文章内容并下载
+      API.articles.get(id).then(res => {
+        const article = res.article;
+        const markdown = `# ${article.title}\n\n${article.content}\n\n---\n\n*导出时间: ${new Date().toLocaleString('zh-CN')}*`;
+        
+        const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${title.replace(/[<>:"/\\|?*]/g, '')}.md`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        Utils.toast('导出成功');
+      }).catch(err => Utils.toast('导出失败: ' + err.message));
+    }
+
+    loadArticles();
+  </script>
+</body>
+</html>

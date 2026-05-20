@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>写文章 - AI文章管理</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .header { display: flex; justify-content: space-between; align-items: center; }
+    .header-actions { display: flex; gap: 12px; }
+    .header-actions .btn { padding: 6px 12px; font-size: 14px; }
+    .image-preview { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .image-item { position: relative; width: 80px; height: 80px; }
+    .image-item img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+    .image-item .remove { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: #F5222D; color: white; border-radius: 50%; font-size: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .upload-btn { width: 80px; height: 80px; border: 2px dashed #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #999; font-size: 24px; }
+    .upload-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .generating { text-align: center; padding: 40px; }
+    .generating .spinner { margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/mobile/index.html" class="header-back">← 返回</a>
+    <h1>写文章</h1>
+    <div class="header-actions">
+      <button class="btn btn-outline" id="saveDraftBtn">保存草稿</button>
+      <button class="btn btn-primary" id="submitBtn">发布</button>
+    </div>
+  </div>
+
+  <div class="page-content">
+    <div class="input-group">
+      <label>文章标题</label>
+      <input type="text" id="title" placeholder="请输入文章标题" maxlength="100">
+    </div>
+    
+    <div class="input-group">
+      <label>封面图片</label>
+      <div class="image-preview" id="coverPreview">
+        <div class="upload-btn" id="uploadCover">+</div>
+      </div>
+      <input type="file" id="coverInput" accept="image/*" style="display:none;">
+    </div>
+
+    <div class="input-group">
+      <label>文章内容（支持Markdown）</label>
+      <textarea id="content" placeholder="请输入文章内容..." style="min-height:300px;"></textarea>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    if (!API.user.isLoggedIn()) window.location.href = '/mobile/login.html';
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const articleId = urlParams.get('id');
+    let coverUrl = '';
+
+    // 加载文章数据（编辑模式）
+    if (articleId) {
+      document.querySelector('.header h1').textContent = '编辑文章';
+      loadArticle();
+    }
+
+    async function loadArticle() {
+      try {
+        const res = await API.articles.get(articleId);
+        document.getElementById('title').value = res.article.title;
+        document.getElementById('content').value = res.article.content;
+        if (res.article.cover_image) {
+          coverUrl = res.article.cover_image;
+          renderCover();
+        }
+      } catch (err) {
+        Utils.toast('加载失败: ' + err.message);
+      }
+    }
+
+    // 封面上传
+    document.getElementById('uploadCover').onclick = () => document.getElementById('coverInput').click();
+    
+    document.getElementById('coverInput').onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      Utils.toast('上传中...');
+      try {
+        const res = await API.upload.image(file);
+        if (res.url) {
+          coverUrl = res.url;
+          renderCover();
+          Utils.toast('上传成功');
+        } else {
+          Utils.toast(res.error || '上传失败');
+        }
+      } catch (err) {
+        Utils.toast('上传失败: ' + err.message);
+      }
+    };
+
+    function renderCover() {
+      const preview = document.getElementById('coverPreview');
+      preview.innerHTML = `
+        <div class="image-item">
+          <img src="${coverUrl}" alt="封面">
+          <span class="remove" onclick="removeCover()">×</span>
+        </div>
+      `;
+    }
+
+    function removeCover() {
+      coverUrl = '';
+      document.getElementById('coverPreview').innerHTML = '<div class="upload-btn" id="uploadCover">+</div>';
+      document.getElementById('uploadCover').onclick = () => document.getElementById('coverInput').click();
+    }
+
+    // 保存草稿
+    document.getElementById('saveDraftBtn').onclick = () => saveArticle('draft');
+    
+    // 发布
+    document.getElementById('submitBtn').onclick = () => saveArticle('pending');
+
+    async function saveArticle(status) {
+      const title = document.getElementById('title').value.trim();
+      const content = document.getElementById('content').value.trim();
+
+      if (!title) return Utils.toast('请输入标题');
+      if (!content) return Utils.toast('请输入内容');
+
+      const btn = status === 'draft' ? document.getElementById('saveDraftBtn') : document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = '保存中...';
+
+      try {
+        const data = { title, content, cover_image: coverUrl, status, source: 'manual' };
+        
+        if (articleId) {
+          await API.articles.update(articleId, data);
+          Utils.toast('更新成功');
+        } else {
+          await API.articles.create(data);
+          Utils.toast('创建成功');
+        }
+        
+        setTimeout(() => window.location.href = '/mobile/index.html', 1000);
+      } catch (err) {
+        Utils.toast(err.message);
+        btn.disabled = false;
+        btn.textContent = status === 'draft' ? '保存草稿' : '发布';
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>创意列表 - AI文章管理</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .idea-item { padding: 16px; border-bottom: 1px solid var(--border); }
+    .idea-content { font-size: 15px; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .idea-meta { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #999; }
+    .idea-actions { display: flex; gap: 8px; }
+    .idea-actions .btn { padding: 4px 10px; font-size: 12px; }
+    .category-filter { display: flex; gap: 8px; overflow-x: auto; padding: 0 16px 12px; background: white; }
+    .category-chip { padding: 6px 14px; background: #E8E8E8; border-radius: 16px; font-size: 13px; white-space: nowrap; cursor: pointer; }
+    .category-chip.active { background: var(--primary); color: white; }
+    .generating-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .generating-box { background: white; padding: 32px; border-radius: 16px; text-align: center; max-width: 300px; }
+    .generating-box .spinner { margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>创意列表</h1>
+  </div>
+
+  <div class="category-filter" id="categoryFilter">
+    <div class="category-chip active" data-id="">全部</div>
+  </div>
+
+  <div class="page-content" style="padding-top:12px;">
+    <div id="ideaList"></div>
+  </div>
+
+  <div id="generatingModal" class="generating-modal" style="display:none;">
+    <div class="generating-box">
+      <div class="spinner"></div>
+      <p>AI正在生成文章...</p>
+      <p style="font-size:12px;color:#999;margin-top:8px;">请稍候，预计需要1-2分钟</p>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="/mobile/index.html" class="nav-item"><span class="icon">📄</span>文章</a>
+    <a href="/mobile/idea.html" class="nav-item active"><span class="icon">💡</span>创意</a>
+    <a href="/mobile/category.html" class="nav-item"><span class="icon">📁</span>分类</a>
+    <a href="/mobile/profile.html" class="nav-item"><span class="icon">👤</span>我的</a>
+  </nav>
+
+  <script src="/js/api.js"></script>
+  <script>
+    if (!API.user.isLoggedIn()) window.location.href = '/mobile/login.html';
+
+    let categories = [];
+    let ideas = [];
+    let currentCategoryId = '';
+
+    async function init() {
+      await loadCategories();
+      await loadIdeas();
+    }
+
+    async function loadCategories() {
+      try {
+        const res = await API.categories.list();
+        categories = res.categories || [];
+        renderCategoryFilter();
+      } catch (err) {
+        console.error('加载分类失败', err);
+      }
+    }
+
+    function renderCategoryFilter() {
+      const container = document.getElementById('categoryFilter');
+      container.innerHTML = `
+        <div class="category-chip ${currentCategoryId === '' ? 'active' : ''}" onclick="filterByCategory('')">全部</div>
+        ${categories.map(c => `
+          <div class="category-chip ${currentCategoryId == c.id ? 'active' : ''}" onclick="filterByCategory(${c.id})">${Utils.escapeHtml(c.name)}</div>
+        `).join('')}
+      `;
+    }
+
+    async function loadIdeas() {
+      const listEl = document.getElementById('ideaList');
+      listEl.innerHTML = '<div class="loading"><div class="spinner"></div>加载中...</div>';
+      
+      try {
+        const params = currentCategoryId ? { category_id: currentCategoryId } : {};
+        const res = await API.ideas.list(params);
+        ideas = res.ideas || [];
+        renderIdeas();
+      } catch (err) {
+        listEl.innerHTML = '<div class="empty-state"><p>加载失败: ' + err.message + '</p></div>';
+      }
+    }
+
+    function renderIdeas() {
+      const listEl = document.getElementById('ideaList');
+      
+      if (ideas.length === 0) {
+        listEl.innerHTML = '<div class="empty-state"><div class="icon">💡</div><p>暂无创意</p><p style="font-size:12px;color:#999;">点击右下角+添加新创意</p></div>';
+        return;
+      }
+
+      listEl.innerHTML = ideas.map(idea => `
+        <div class="idea-item">
+          <div class="idea-content">${Utils.escapeHtml(idea.content)}</div>
+          <div class="idea-meta">
+            <span>${idea.category_name ? '📁 ' + Utils.escapeHtml(idea.category_name) : ''} · ${Utils.formatDate(idea.created_at)}</span>
+            <div class="idea-actions">
+              ${idea.status === 'pending' ? `<button class="btn btn-primary" onclick="generateArticle(${idea.id})">生成文章</button>` : ''}
+              ${idea.status === 'generated' ? `<span style="color:#52C41A;">✓ 已生成</span>` : ''}
+              <button class="btn btn-outline" onclick="editIdea(${idea.id}, '${Utils.escapeHtml(idea.content)}')">编辑</button>
+              <button class="btn btn-danger" onclick="deleteIdea(${idea.id})">删除</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filterByCategory(id) {
+      currentCategoryId = id;
+      renderCategoryFilter();
+      loadIdeas();
+    }
+
+    async function generateArticle(ideaId) {
+      document.getElementById('generatingModal').style.display = 'flex';
+      
+      try {
+        const res = await API.ideas.generate(ideaId);
+        Utils.toast('文章生成成功！');
+        setTimeout(() => {
+          document.getElementById('generatingModal').style.display = 'none';
+          window.location.href = '/mobile/index.html';
+        }, 1500);
+      } catch (err) {
+        document.getElementById('generatingModal').style.display = 'none';
+        Utils.toast('生成失败: ' + err.message);
+      }
+    }
+
+    function editIdea(id, content) {
+      const newContent = prompt('编辑创意:', content);
+      if (newContent && newContent !== content) {
+        API.ideas.update(id, { content: newContent }).then(() => {
+          Utils.toast('更新成功');
+          loadIdeas();
+        }).catch(err => Utils.toast(err.message));
+      }
+    }
+
+    async function deleteIdea(id) {
+      if (!await Utils.confirm('确定要删除这个创意吗？')) return;
+      try {
+        await API.ideas.delete(id);
+        Utils.toast('删除成功');
+        loadIdeas();
+      } catch (err) {
+        Utils.toast(err.message);
+      }
+    }
+
+    // 添加新创意
+    document.addEventListener('DOMContentLoaded', () => {
+      const fab = document.createElement('div');
+      fab.className = 'fab';
+      fab.textContent = '+';
+      fab.onclick = addNewIdea;
+      document.body.appendChild(fab);
+    });
+
+    function addNewIdea() {
+      const content = prompt('输入创意内容:');
+      if (!content) return;
+
+      const categoryId = prompt('选择分类ID（留空则无分类）:') || null;
+      
+      API.ideas.create({ content, category_id: categoryId }).then(() => {
+        Utils.toast('添加成功');
+        loadIdeas();
+      }).catch(err => Utils.toast(err.message));
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>数据统计 - AI文章管理</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
+    .stat-card { background: white; border-radius: 12px; padding: 20px; text-align: center; box-shadow: var(--shadow); }
+    .stat-value { font-size: 32px; font-weight: bold; color: var(--primary); margin-bottom: 4px; }
+    .stat-label { font-size: 13px; color: #666; }
+    .stat-card.warning .stat-value { color: #FAAD14; }
+    .stat-card.success .stat-value { color: #52C41A; }
+    .section-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; padding: 0 4px; }
+    .log-item { background: white; border-radius: 8px; padding: 12px; margin-bottom: 8px; font-size: 13px; }
+    .log-header { display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .log-type { font-weight: 600; }
+    .log-time { color: #999; }
+    .log-error { color: #F5222D; font-size: 12px; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/mobile/profile.html" class="header-back">← 返回</a>
+    <h1>数据统计</h1>
+  </div>
+
+  <div class="page-content">
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card"><div class="stat-value" id="totalArticles">-</div><div class="stat-label">文章总数</div></div>
+      <div class="stat-card success"><div class="stat-value" id="publishedArticles">-</div><div class="stat-label">已发布</div></div>
+      <div class="stat-card warning"><div class="stat-value" id="pendingArticles">-</div><div class="stat-label">待发布</div></div>
+      <div class="stat-card"><div class="stat-value" id="draftArticles">-</div><div class="stat-label">草稿</div></div>
+      <div class="stat-card"><div class="stat-value" id="ideasCount">-</div><div class="stat-label">创意数</div></div>
+      <div class="stat-card"><div class="stat-value" id="aiGenerateCount">-</div><div class="stat-label">AI生成次数</div></div>
+    </div>
+
+    <h3 class="section-title">最近AI日志</h3>
+    <div id="logList"></div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="/mobile/index.html" class="nav-item"><span class="icon">📄</span>文章</a>
+    <a href="/mobile/idea.html" class="nav-item"><span class="icon">💡</span>创意</a>
+    <a href="/mobile/category.html" class="nav-item"><span class="icon">📁</span>分类</a>
+    <a href="/mobile/profile.html" class="nav-item active"><span class="icon">👤</span>我的</a>
+  </nav>
+
+  <script src="/js/api.js"></script>
+  <script>
+    if (!API.user.isLoggedIn()) window.location.href = '/mobile/login.html';
+
+    async function loadStats() {
+      try {
+        const [articlesRes, ideasRes] = await Promise.all([
+          API.articles.list(),
+          API.ideas.list()
+        ]);
+
+        const articles = articlesRes.articles || [];
+        document.getElementById('totalArticles').textContent = articles.length;
+        document.getElementById('publishedArticles').textContent = articles.filter(a => a.status === 'published').length;
+        document.getElementById('pendingArticles').textContent = articles.filter(a => a.status === 'pending').length;
+        document.getElementById('draftArticles').textContent = articles.filter(a => a.status === 'draft').length;
+        document.getElementById('ideasCount').textContent = (ideasRes.ideas || []).length;
+
+        // AI生成次数从文章中统计
+        const aiArticles = articles.filter(a => a.source === 'ai').length;
+        document.getElementById('aiGenerateCount').textContent = aiArticles;
+
+      } catch (err) {
+        console.error('加载统计失败', err);
+      }
+    }
+
+    async function loadLogs() {
+      try {
+        // 获取AI日志
+        const res = await fetch(`${API_BASE}/ai-logs`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem(STORAGE_KEYS.TOKEN)}` }
+        });
+        const data = await res.json();
+        const logs = (data.logs || []).slice(0, 10);
+
+        const listEl = document.getElementById('logList');
+        if (logs.length === 0) {
+          listEl.innerHTML = '<div class="empty-state"><p style="color:#999;">暂无日志</p></div>';
+          return;
+        }
+
+        listEl.innerHTML = logs.map(log => `
+          <div class="log-item">
+            <div class="log-header">
+              <span class="log-type">${log.type === 'text' ? '📝 文章AI' : '🖼️ 图片AI'}</span>
+              <span class="log-time">${Utils.formatDate(log.created_at)}</span>
+            </div>
+            <div>模型: ${Utils.escapeHtml(log.model || '-')}</div>
+            ${log.status === 'failed' ? `<div class="log-error">错误: ${Utils.escapeHtml(log.error_message || '未知错误')}</div>` : ''}
+          </div>
+        `).join('');
+      } catch (err) {
+        document.getElementById('logList').innerHTML = '<p style="color:#999;text-align:center;">加载日志失败</p>';
+      }
+    }
+
+    loadStats();
+    loadLogs();
+  </script>
+</body>
+</html>

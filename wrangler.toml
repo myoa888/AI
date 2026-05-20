@@ -1,0 +1,10 @@
+name = "ai-article-api"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ai-article-db"
+database_id = "1c603faa-ab67-488b-a3d9-552458b5e5c5"
+
+[vars]
+ENVIRONMENT = "production"

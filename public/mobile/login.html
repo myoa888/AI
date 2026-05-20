@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>登录 - AI文章管理</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #4A90D9 0%, #67B5E8 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .login-container { width: 100%; max-width: 360px; }
+    .logo { text-align: center; margin-bottom: 40px; }
+    .logo .icon {
+      font-size: 64px; background: white; width: 100px; height: 100px;
+      border-radius: 24px; display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+    .logo h1 { color: white; font-size: 24px; }
+    .login-form {
+      background: white; border-radius: 16px; padding: 32px 24px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    .login-form h2 { text-align: center; margin-bottom: 24px; font-size: 20px; }
+    .login-form .link { text-align: center; margin-top: 16px; }
+    .login-form .link a { color: #4A90D9; text-decoration: none; }
+    .error-msg { color: #F5222D; font-size: 12px; margin-top: 4px; display: none; }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="logo">
+      <div class="icon">📝</div>
+      <h1>AI文章管理</h1>
+    </div>
+    <div class="login-form">
+      <h2 id="formTitle">登录</h2>
+      <form id="loginForm">
+        <div class="input-group">
+          <label>用户名</label>
+          <input type="text" id="username" placeholder="请输入用户名" required>
+        </div>
+        <div class="input-group">
+          <label>密码</label>
+          <input type="password" id="password" placeholder="请输入密码" required>
+        </div>
+        <div class="input-group" id="nicknameGroup" style="display:none;">
+          <label>昵称（选填）</label>
+          <input type="text" id="nickname" placeholder="请输入昵称">
+        </div>
+        <div class="error-msg" id="errorMsg"></div>
+        <button type="submit" class="btn btn-primary btn-block" id="submitBtn">登录</button>
+      </form>
+      <div class="link">
+        <a href="#" id="toggleLink">还没有账号？立即注册</a>
+      </div>
+    </div>
+  </div>
+  <script src="/js/api.js"></script>
+  <script>
+    let isRegister = false;
+    const formTitle = document.getElementById('formTitle');
+    const nicknameGroup = document.getElementById('nicknameGroup');
+    const submitBtn = document.getElementById('submitBtn');
+    const toggleLink = document.getElementById('toggleLink');
+    const errorMsg = document.getElementById('errorMsg');
+
+    toggleLink.onclick = (e) => {
+      e.preventDefault();
+      isRegister = !isRegister;
+      formTitle.textContent = isRegister ? '注册' : '登录';
+      submitBtn.textContent = isRegister ? '注册' : '登录';
+      nicknameGroup.style.display = isRegister ? 'block' : 'none';
+      toggleLink.textContent = isRegister ? '已有账号？去登录' : '还没有账号？立即注册';
+      errorMsg.style.display = 'none';
+    };
+
+    document.getElementById('loginForm').onsubmit = async (e) => {
+      e.preventDefault();
+      errorMsg.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.textContent = '处理中...';
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const nickname = document.getElementById('nickname').value.trim();
+
+      try {
+        let result;
+        if (isRegister) {
+          result = await API.auth.register(username, password, nickname);
+        } else {
+          result = await API.auth.login(username, password);
+        }
+        
+        localStorage.setItem(STORAGE_KEYS.TOKEN, result.token);
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(result.user));
+        
+        Utils.toast(isRegister ? '注册成功！' : '登录成功！');
+        setTimeout(() => {
+          window.location.href = '/mobile/index.html';
+        }, 1000);
+      } catch (err) {
+        errorMsg.textContent = err.message;
+        errorMsg.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = isRegister ? '注册' : '登录';
+      }
+    };
+  </script>
+</body>
+</html>

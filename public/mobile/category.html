@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>分类管理 - AI文章管理</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .category-list { }
+    .category-item { display: flex; align-items: center; padding: 16px; border-bottom: 1px solid var(--border); }
+    .category-icon { font-size: 28px; width: 48px; height: 48px; background: #F5F5F5; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 16px; }
+    .category-info { flex: 1; }
+    .category-name { font-size: 16px; font-weight: 600; }
+    .category-count { font-size: 12px; color: #999; margin-top: 2px; }
+    .category-actions { display: flex; gap: 8px; }
+    .category-actions .btn { padding: 6px 12px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>分类管理</h1>
+  </div>
+
+  <div class="page-content">
+    <div id="categoryList"></div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="/mobile/index.html" class="nav-item"><span class="icon">📄</span>文章</a>
+    <a href="/mobile/idea.html" class="nav-item"><span class="icon">💡</span>创意</a>
+    <a href="/mobile/category.html" class="nav-item active"><span class="icon">📁</span>分类</a>
+    <a href="/mobile/profile.html" class="nav-item"><span class="icon">👤</span>我的</a>
+  </nav>
+
+  <script src="/js/api.js"></script>
+  <script>
+    if (!API.user.isLoggedIn()) window.location.href = '/mobile/login.html';
+
+    let categories = [];
+
+    async function loadCategories() {
+      const listEl = document.getElementById('categoryList');
+      listEl.innerHTML = '<div class="loading"><div class="spinner"></div>加载中...</div>';
+
+      try {
+        const res = await API.categories.list();
+        categories = res.categories || [];
+        renderCategories();
+      } catch (err) {
+        listEl.innerHTML = '<div class="empty-state"><p>加载失败: ' + err.message + '</p></div>';
+      }
+    }
+
+    function renderCategories() {
+      const listEl = document.getElementById('categoryList');
+
+      if (categories.length === 0) {
+        listEl.innerHTML = '<div class="empty-state"><div class="icon">📁</div><p>暂无分类</p></div>';
+        return;
+      }
+
+      listEl.innerHTML = categories.map(cat => `
+        <div class="category-item">
+          <div class="category-icon">${cat.icon || '📁'}</div>
+          <div class="category-info">
+            <div class="category-name">${Utils.escapeHtml(cat.name)}</div>
+            <div class="category-count">${cat.idea_count || 0} 个创意</div>
+          </div>
+          <div class="category-actions">
+            <button class="btn btn-outline" onclick="editCategory(${cat.id}, '${Utils.escapeHtml(cat.name)}', '${cat.icon || ''}')">编辑</button>
+            <button class="btn btn-danger" onclick="deleteCategory(${cat.id})">删除</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function addCategory() {
+      const name = prompt('输入分类名称:');
+      if (!name) return;
+
+      const icon = prompt('输入图标（留空使用默认📁）:', '📁') || '📁';
+
+      API.categories.create({ name, icon }).then(() => {
+        Utils.toast('添加成功');
+        loadCategories();
+      }).catch(err => Utils.toast(err.message));
+    }
+
+    function editCategory(id, currentName, currentIcon) {
+      const name = prompt('输入分类名称:', currentName);
+      if (!name || name === currentName) return;
+
+      const icon = prompt('输入图标:', currentIcon || '📁') || '📁';
+
+      API.categories.update(id, { name, icon }).then(() => {
+        Utils.toast('更新成功');
+        loadCategories();
+      }).catch(err => Utils.toast(err.message));
+    }
+
+    async function deleteCategory(id) {
+      if (!await Utils.confirm('确定要删除这个分类吗？')) return;
+
+      try {
+        await API.categories.delete(id);
+        Utils.toast('删除成功');
+        loadCategories();
+      } catch (err) {
+        Utils.toast(err.message);
+      }
+    }
+
+    // 添加按钮
+    const fab = document.createElement('div');
+    fab.className = 'fab';
+    fab.textContent = '+';
+    fab.onclick = addCategory;
+    document.body.appendChild(fab);
+
+    loadCategories();
+  </script>
+</body>
+</html>

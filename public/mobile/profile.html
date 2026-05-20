@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>我的 - AI文章管理</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .profile-header { background: linear-gradient(135deg, #4A90D9 0%, #67B5E8 100%); padding: 30px 20px; text-align: center; color: white; }
+    .profile-avatar { width: 80px; height: 80px; background: white; border-radius: 50%; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 36px; }
+    .profile-name { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+    .profile-username { font-size: 14px; opacity: 0.8; }
+    .menu-list { background: white; margin-top: 16px; border-radius: 12px; overflow: hidden; }
+    .menu-item { display: flex; align-items: center; padding: 16px; border-bottom: 1px solid var(--border); cursor: pointer; }
+    .menu-item:last-child { border-bottom: none; }
+    .menu-item:active { background: #F5F5F5; }
+    .menu-icon { font-size: 24px; width: 32px; }
+    .menu-text { flex: 1; font-size: 15px; }
+    .menu-arrow { color: #CCC; font-size: 20px; }
+    .menu-danger { color: #F5222D; }
+  </style>
+</head>
+<body>
+  <div class="profile-header">
+    <div class="profile-avatar" id="avatarIcon">👤</div>
+    <div class="profile-name" id="nickname">加载中...</div>
+    <div class="profile-username" id="username"></div>
+  </div>
+
+  <div class="page-content">
+    <div class="menu-list">
+      <div class="menu-item" onclick="location.href='/mobile/ai-config.html'">
+        <span class="menu-icon">🤖</span>
+        <span class="menu-text">AI配置</span>
+        <span class="menu-arrow">›</span>
+      </div>
+      <div class="menu-item" onclick="location.href='/mobile/stats.html'">
+        <span class="menu-icon">📊</span>
+        <span class="menu-text">数据统计</span>
+        <span class="menu-arrow">›</span>
+      </div>
+      <div class="menu-item" onclick="location.href='/mobile/export.html'">
+        <span class="menu-icon">📥</span>
+        <span class="menu-text">导出文章</span>
+        <span class="menu-arrow">›</span>
+      </div>
+    </div>
+
+    <div class="menu-list" style="margin-top:16px;">
+      <div class="menu-item menu-danger" onclick="logout()">
+        <span class="menu-icon">🚪</span>
+        <span class="menu-text">退出登录</span>
+        <span class="menu-arrow">›</span>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="/mobile/index.html" class="nav-item"><span class="icon">📄</span>文章</a>
+    <a href="/mobile/idea.html" class="nav-item"><span class="icon">💡</span>创意</a>
+    <a href="/mobile/category.html" class="nav-item"><span class="icon">📁</span>分类</a>
+    <a href="/mobile/profile.html" class="nav-item active"><span class="icon">👤</span>我的</a>
+  </nav>
+
+  <script src="/js/api.js"></script>
+  <script>
+    if (!API.user.isLoggedIn()) window.location.href = '/mobile/login.html';
+
+    const user = API.user.getCurrentUser();
+    if (user) {
+      document.getElementById('nickname').textContent = user.nickname || user.username;
+      document.getElementById('username').textContent = '@' + user.username;
+      document.getElementById('avatarIcon').textContent = (user.nickname || user.username)[0].toUpperCase();
+    }
+
+    async function logout() {
+      if (!await Utils.confirm('确定要退出登录吗？')) return;
+      API.auth.logout();
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>文章详情 - AI文章管理</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .article-header { margin-bottom: 20px; }
+    .article-title { font-size: 22px; font-weight: bold; line-height: 1.4; margin-bottom: 12px; }
+    .article-info { display: flex; gap: 16px; font-size: 13px; color: #999; }
+    .article-cover { width: 100%; max-height: 300px; object-fit: cover; border-radius: 12px; margin-bottom: 20px; }
+    .article-content { font-size: 16px; line-height: 1.8; color: #333; }
+    .article-content h1, .article-content h2, .article-content h3 { margin: 20px 0 10px; }
+    .article-content img { max-width: 100%; border-radius: 8px; margin: 16px 0; }
+    .article-content p { margin-bottom: 12px; }
+    .article-content a { color: var(--primary); }
+    .article-actions { display: flex; gap: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+    .article-actions .btn { flex: 1; }
+    
+    /* 评论 */
+    .comments-section { margin-top: 30px; padding-top: 20px; border-top: 8px solid var(--bg); }
+    .comments-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+    .comment-item { display: flex; gap: 12px; margin-bottom: 16px; }
+    .comment-avatar { width: 36px; height: 36px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+    .comment-body { flex: 1; }
+    .comment-nickname { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .comment-text { font-size: 14px; color: #333; }
+    .comment-time { font-size: 12px; color: #999; margin-top: 4px; }
+    .comment-input { display: flex; gap: 12px; margin-top: 16px; }
+    .comment-input input { flex: 1; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/mobile/index.html" class="header-back">← 返回</a>
+    <h1>文章详情</h1>
+  </div>
+
+  <div class="page-content">
+    <div id="articleContent"></div>
+    <div id="commentsSection"></div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    if (!API.user.isLoggedIn()) window.location.href = '/mobile/login.html';
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const articleId = urlParams.get('id');
+    let article = null;
+    let currentUser = API.user.getCurrentUser();
+
+    async function loadArticle() {
+      if (!articleId) {
+        Utils.toast('文章不存在');
+        return;
+      }
+
+      try {
+        const res = await API.articles.get(articleId);
+        article = res.article;
+        renderArticle();
+        loadComments();
+      } catch (err) {
+        document.getElementById('articleContent').innerHTML = '<div class="empty-state"><p>加载失败: ' + err.message + '</p></div>';
+      }
+    }
+
+    function renderArticle() {
+      const html = `
+        ${article.cover_image ? `<img src="${article.cover_image}" class="article-cover" alt="封面">` : ''}
+        <div class="article-header">
+          <h1 class="article-title">${Utils.escapeHtml(article.title)}</h1>
+          <div class="article-info">
+            <span class="tag tag-${article.status}">${getStatusText(article.status)}</span>
+            <span>${Utils.formatFullDate(article.created_at)}</span>
+            <span>${article.source === 'ai' ? 'AI生成' : '手动'}</span>
+          </div>
+        </div>
+        <div class="article-content">${Utils.parseMarkdown(article.content)}</div>
+        <div class="article-actions">
+          ${article.status === 'draft' || article.status === 'pending' ? `<button class="btn btn-outline" onclick="editArticle()">编辑</button>` : ''}
+          ${article.status === 'pending' ? `<button class="btn btn-primary" onclick="publishArticle()">发布</button>` : ''}
+          ${article.status === 'published' ? `<button class="btn btn-outline" onclick="cancelPublish()">撤回</button>` : ''}
+          <button class="btn btn-danger" onclick="deleteArticle()">删除</button>
+        </div>
+      `;
+      document.getElementById('articleContent').innerHTML = html;
+    }
+
+    function getStatusText(status) {
+      const map = { draft: '草稿', pending: '待发布', published: '已发布' };
+      return map[status] || status;
+    }
+
+    // 加载评论
+    async function loadComments() {
+      try {
+        const res = await API.comments.list(articleId);
+        const comments = res.comments || [];
+        document.getElementById('commentsSection').innerHTML = `
+          <div class="comments-section">
+            <h3 class="comments-title">评论 (${comments.length})</h3>
+            <div id="commentList">
+              ${comments.length === 0 ? '<p style="color:#999;">暂无评论</p>' : ''}
+              ${comments.map(c => `
+                <div class="comment-item">
+                  <div class="comment-avatar">${(c.nickname || c.username || 'U')[0].toUpperCase()}</div>
+                  <div class="comment-body">
+                    <div class="comment-nickname">${Utils.escapeHtml(c.nickname || c.username)}</div>
+                    <div class="comment-text">${Utils.escapeHtml(c.content)}</div>
+                    <div class="comment-time">${Utils.formatDate(c.created_at)}</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+            <div class="comment-input">
+              <input type="text" id="commentInput" placeholder="写下你的评论...">
+              <button class="btn btn-primary" onclick="addComment()">发送</button>
+            </div>
+          </div>
+        `;
+        
+        document.getElementById('commentInput').onkeypress = (e) => {
+          if (e.key === 'Enter') addComment();
+        };
+      } catch (err) {
+        console.error('加载评论失败', err);
+      }
+    }
+
+    async function addComment() {
+      const input = document.getElementById('commentInput');
+      const content = input.value.trim();
+      if (!content) return;
+
+      try {
+        await API.comments.add(articleId, content);
+        input.value = '';
+        loadComments();
+      } catch (err) {
+        Utils.toast(err.message);
+      }
+    }
+
+    function editArticle() {
+      window.location.href = '/mobile/create.html?id=' + articleId;
+    }
+
+    async function publishArticle() {
+      if (!await Utils.confirm('确定要发布这篇文章吗？')) return;
+      try {
+        await API.articles.publish(articleId);
+        Utils.toast('发布成功');
+        loadArticle();
+      } catch (err) {
+        Utils.toast(err.message);
+      }
+    }
+
+    async function cancelPublish() {
+      if (!await Utils.confirm('确定要撤回发布吗？')) return;
+      try {
+        await API.articles.update(articleId, { status: 'pending' });
+        Utils.toast('已撤回');
+        loadArticle();
+      } catch (err) {
+        Utils.toast(err.message);
+      }
+    }
+
+    async function deleteArticle() {
+      if (!await Utils.confirm('确定要删除这篇文章吗？')) return;
+      try {
+        await API.articles.delete(articleId);
+        Utils.toast('删除成功');
+        setTimeout(() => window.location.href = '/mobile/index.html', 1000);
+      } catch (err) {
+        Utils.toast(err.message);
+      }
+    }
+
+    loadArticle();
+  </script>
+</body>
+</html>
