@@ -1,55 +1,51 @@
-// Cloudflare Workers API 主路由
-addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request));
-});
-
-async function handleRequest(request) {
-  const url = new URL(request.url);
+// Cloudflare Pages Functions API
+export async function onRequest(context) {
+  const url = new URL(context.request.url);
   const path = url.pathname.replace('/api', '');
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization'
   };
-  if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  if (context.request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
     let response;
-    const method = request.method;
+    const method = context.request.method;
     const m = method;
+    const env = context.env;
 
-    if (path === '/auth/register') response = await handleAuth.register(request, event);
-    else if (path === '/auth/login') response = await handleAuth.login(request, event);
-    else if (path === '/articles' && m === 'GET') response = await handleArticles.list(request, event);
-    else if (path === '/articles' && m === 'POST') response = await handleArticles.create(request, event);
-    else if (path.match(/^\/articles\/\d+$/) && m === 'GET') response = await handleArticles.get(request, event);
-    else if (path.match(/^\/articles\/\d+$/) && m === 'PUT') response = await handleArticles.update(request, event);
-    else if (path.match(/^\/articles\/\d+$/) && m === 'DELETE') response = await handleArticles.delete(request, event);
-    else if (path.match(/^\/articles\/\d+\/publish$/) && m === 'POST') response = await handleArticles.publish(request, event);
-    else if (path.match(/^\/articles\/\d+\/comments$/) && m === 'GET') response = await handleComments.list(request, event);
-    else if (path.match(/^\/articles\/\d+\/comments$/) && m === 'POST') response = await handleComments.create(request, event);
-    else if (path === '/ideas' && m === 'GET') response = await handleIdeas.list(request, event);
-    else if (path === '/ideas' && m === 'POST') response = await handleIdeas.create(request, event);
-    else if (path.match(/^\/ideas\/\d+$/) && m === 'PUT') response = await handleIdeas.update(request, event);
-    else if (path.match(/^\/ideas\/\d+$/) && m === 'DELETE') response = await handleIdeas.delete(request, event);
-    else if (path.match(/^\/ideas\/\d+\/generate$/) && m === 'POST') response = await handleIdeas.generate(request, event);
-    else if (path === '/categories' && m === 'GET') response = await handleCategories.list(request, event);
-    else if (path === '/categories' && m === 'POST') response = await handleCategories.create(request, event);
-    else if (path.match(/^\/categories\/\d+$/) && m === 'PUT') response = await handleCategories.update(request, event);
-    else if (path.match(/^\/categories\/\d+$/) && m === 'DELETE') response = await handleCategories.delete(request, event);
-    else if (path === '/ai-configs' && m === 'GET') response = await handleAIConfigs.list(request, event);
-    else if (path === '/ai-configs' && m === 'POST') response = await handleAIConfigs.create(request, event);
-    else if (path.match(/^\/ai-configs\/\d+$/) && m === 'PUT') response = await handleAIConfigs.update(request, event);
-    else if (path.match(/^\/ai-configs\/\d+$/) && m === 'DELETE') response = await handleAIConfigs.delete(request, event);
-    else if (path === '/ai-logs' && m === 'GET') response = await handleAILogs.list(request, event);
-    else if (path === '/admin/login') response = await handleAdmin.login(request, event);
-    else if (path === '/admin/stats') response = await handleAdmin.stats(request, event);
-    else if (path === '/admin/users' && m === 'GET') response = await handleAdmin.users(request, event);
-    else if (path.match(/^\/admin\/users\/\d+$/) && m === 'DELETE') response = await handleAdmin.deleteUser(request, event);
-    else if (path === '/admin/articles' && m === 'GET') response = await handleAdmin.articles(request, event);
-    else if (path.match(/^\/admin\/articles\/\d+$/) && m === 'DELETE') response = await handleAdmin.deleteArticle(request, event);
-    else if (path === '/admin/export') response = await handleAdmin.export(request, event);
-    else if (path === '/upload' && m === 'POST') response = await handleUpload.image(request, event);
+    if (path === '/auth/register') response = await handleAuth.register(context.request, env);
+    else if (path === '/auth/login') response = await handleAuth.login(context.request, env);
+    else if (path === '/articles' && m === 'GET') response = await handleArticles.list(context.request, env);
+    else if (path === '/articles' && m === 'POST') response = await handleArticles.create(context.request, env);
+    else if (path.match(/^\/articles\/\d+$/) && m === 'GET') response = await handleArticles.get(context.request, env);
+    else if (path.match(/^\/articles\/\d+$/) && m === 'PUT') response = await handleArticles.update(context.request, env);
+    else if (path.match(/^\/articles\/\d+$/) && m === 'DELETE') response = await handleArticles.delete(context.request, env);
+    else if (path.match(/^\/articles\/\d+\/publish$/) && m === 'POST') response = await handleArticles.publish(context.request, env);
+    else if (path.match(/^\/articles\/\d+\/comments$/) && m === 'GET') response = await handleComments.list(context.request, env);
+    else if (path.match(/^\/articles\/\d+\/comments$/) && m === 'POST') response = await handleComments.create(context.request, env);
+    else if (path === '/ideas' && m === 'GET') response = await handleIdeas.list(context.request, env);
+    else if (path === '/ideas' && m === 'POST') response = await handleIdeas.create(context.request, env);
+    else if (path.match(/^\/ideas\/\d+$/) && m === 'PUT') response = await handleIdeas.update(context.request, env);
+    else if (path.match(/^\/ideas\/\d+$/) && m === 'DELETE') response = await handleIdeas.delete(context.request, env);
+    else if (path.match(/^\/ideas\/\d+\/generate$/) && m === 'POST') response = await handleIdeas.generate(context.request, env);
+    else if (path === '/categories' && m === 'GET') response = await handleCategories.list(context.request, env);
+    else if (path === '/categories' && m === 'POST') response = await handleCategories.create(context.request, env);
+    else if (path.match(/^\/categories\/\d+$/) && m === 'PUT') response = await handleCategories.update(context.request, env);
+    else if (path.match(/^\/categories\/\d+$/) && m === 'DELETE') response = await handleCategories.delete(context.request, env);
+    else if (path === '/ai-configs' && m === 'GET') response = await handleAIConfigs.list(context.request, env);
+    else if (path === '/ai-configs' && m === 'POST') response = await handleAIConfigs.create(context.request, env);
+    else if (path.match(/^\/ai-configs\/\d+$/) && m === 'PUT') response = await handleAIConfigs.update(context.request, env);
+    else if (path.match(/^\/ai-configs\/\d+$/) && m === 'DELETE') response = await handleAIConfigs.delete(context.request, env);
+    else if (path === '/ai-logs' && m === 'GET') response = await handleAILogs.list(context.request, env);
+    else if (path === '/admin/login') response = await handleAdmin.login(context.request, env);
+    else if (path === '/admin/stats') response = await handleAdmin.stats(context.request, env);
+    else if (path === '/admin/users' && m === 'GET') response = await handleAdmin.users(context.request, env);
+    else if (path.match(/^\/admin\/users\/\d+$/) && m === 'DELETE') response = await handleAdmin.deleteUser(context.request, env);
+    else if (path === '/admin/articles' && m === 'GET') response = await handleAdmin.articles(context.request, env);
+    else if (path.match(/^\/admin\/articles\/\d+$/) && m === 'DELETE') response = await handleAdmin.deleteArticle(context.request, env);
+    else if (path === '/admin/export') response = await handleAdmin.export(context.request, env);
     else response = new Response(JSON.stringify({ error: 'API不存在' }), { status: 404 });
 
     return new Response(response.body, { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -442,21 +438,5 @@ const handleAdmin = {
       content += `# ${a.title}\n\n作者: ${a.username}\n发布时间: ${a.published_at}\n\n${a.content}\n\n---\n\n`;
     }
     return new Response(content, { status: 200, headers: { 'Content-Type': 'text/markdown;charset=utf-8', 'Content-Disposition': `attachment; filename="articles_${new Date().toISOString().split('T')[0]}.md"` } });
-  }
-};
-
-// 图片上传
-const handleUpload = {
-  async image(request, env) {
-    const userId = await getUserId(request);
-    if (!userId) return unauthorized();
-    try {
-      const formData = await request.formData();
-      const file = formData.get('image');
-      if (!file) return json({ error: '没有上传文件' }, 400);
-      // 简化处理，实际应上传到R2或D1
-      const url = `/uploads/${Date.now()}_${file.name}`;
-      return json({ url, success: true });
-    } catch (err) { return json({ error: err.message }, 500); }
   }
 };
