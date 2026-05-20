@@ -1,7 +1,7 @@
-// Cloudflare Pages Functions API
+// Cloudflare Pages Functions API - 处理所有 /api/* 路由
 export async function onRequest(context) {
   const url = new URL(context.request.url);
-  // 移除 /api 前缀，确保路径格式正确
+  // 移除 /api 前缀
   let path = url.pathname;
   if (path.startsWith('/api')) {
     path = path.substring(4);
@@ -109,7 +109,6 @@ async function logAI(env, userId, type, model, prompt, status, error = null) {
   } catch (err) { console.error('Log error:', err); }
 }
 
-// 认证
 const handleAuth = {
   async register(request, env) {
     const { username, password, nickname } = await request.json();
@@ -130,7 +129,6 @@ const handleAuth = {
   }
 };
 
-// 文章
 const handleArticles = {
   async list(request, env) {
     const userId = await getUserId(request);
@@ -189,7 +187,6 @@ const handleArticles = {
   }
 };
 
-// 创意
 const handleIdeas = {
   async list(request, env) {
     const userId = await getUserId(request);
@@ -260,7 +257,7 @@ const handleIdeas = {
       const title = titleMatch ? titleMatch[1] : idea.content.substring(0, 30);
 
       const result = await env.DB.prepare("INSERT INTO articles (user_id, idea_id, title, content, source, status) VALUES (?, ?, ?, ?, 'ai', 'pending')").bind(userId, ideaId, title, content).run();
-      await env.DB.prepare("UPDATE ideas SET status = 'generated' WHERE id = ?").bind(ideaId).run();
+      await env.DB.prepareStatement("UPDATE ideas SET status = 'generated' WHERE id = ?").bind(ideaId).run();
       await logAI(env, userId, 'text', textAI.model, idea.content, 'success');
 
       return json({ success: true, articleId: result.meta.last_row_id });
@@ -271,7 +268,6 @@ const handleIdeas = {
   }
 };
 
-// 分类
 const handleCategories = {
   async list(request, env) {
     const userId = await getUserId(request);
@@ -310,7 +306,6 @@ const handleCategories = {
   }
 };
 
-// AI配置
 const handleAIConfigs = {
   async list(request, env) {
     const userId = await getUserId(request);
@@ -355,7 +350,6 @@ const handleAIConfigs = {
   }
 };
 
-// 评论
 const handleComments = {
   async list(request, env) {
     const userId = await getUserId(request);
@@ -373,7 +367,6 @@ const handleComments = {
   }
 };
 
-// AI日志
 const handleAILogs = {
   async list(request, env) {
     const userId = await getUserId(request);
@@ -383,7 +376,6 @@ const handleAILogs = {
   }
 };
 
-// 管理后台
 const handleAdmin = {
   async login(request, env) {
     const { username, password } = await request.json();
