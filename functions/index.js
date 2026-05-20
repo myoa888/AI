@@ -1,7 +1,12 @@
 // Cloudflare Pages Functions API
 export async function onRequest(context) {
   const url = new URL(context.request.url);
-  const path = url.pathname.replace('/api', '');
+  // 移除 /api 前缀，确保路径格式正确
+  let path = url.pathname;
+  if (path.startsWith('/api')) {
+    path = path.substring(4);
+    if (!path.startsWith('/')) path = '/' + path;
+  }
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
