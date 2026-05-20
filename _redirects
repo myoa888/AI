@@ -1,8 +1,0 @@
-# Cloudflare Pages 配置
-# 重定向规则
-
-# 根路径跳转到手机端首页
-/  /mobile/index.html  301
-
-# API路由到Functions
-/api/*  /.netlify/functions/api  200
